@@ -1,21 +1,23 @@
 <?php
 
 /*
- * Plugin Name: Buy one click WooCommerce
+ * Plugin Name: Buy one click for WooCommerce
  * Plugin URI: https://github.com/northmule/buy-one-click-woocommerce
  * Description: Buy in one click for WooCommerce. The best plugin that adds to your online store purchase button in one click
- * Version: 2.2.9
+ * Version: 2.6.0
  * Author: Djo
  * Author URI: https://zixn.ru
- * WC requires at least: 6.0
- * WC tested up to: 8.7
- * Requires at least: 6.0
- * Tested up to: 6.4
- * Text Domain: coderun-oneclickwoo
+ * WC requires at least: 8.0
+ * WC tested up to: 11.1
+ * Requires at least: 6.3
+ * Tested up to: 6.9
+ * Text Domain: buy-one-click-woocommerce
  * Domain Path: /languages
+ * License: GPLv2 or later
+ * License URI: https://www.gnu.org/licenses/gpl-2.0.html
  */
 
-/*  Copyright 2024  Djo  (email: izm@zixn.ru)
+/*  Copyright 2026  Djo  (email: izm@zixn.ru)
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -33,8 +35,8 @@
  *
  */
 
-__('Buy one click WooCommerce');
-__('Buy in one click for WooCommerce. The best plugin that adds to your online store purchase button in one click');
+__('Buy one click WooCommerce', 'buy-one-click-woocommerce');
+__('Buy in one click for WooCommerce. The best plugin that adds to your online store purchase button in one click', 'buy-one-click-woocommerce');
 
 if (!defined('ABSPATH')) {
     exit;
@@ -42,19 +44,13 @@ if (!defined('ABSPATH')) {
 
 define('CODERUN_ONECLICKWOO_PLUGIN_DIR', WP_PLUGIN_DIR . '/' . dirname(plugin_basename(__FILE__)));
 define('CODERUN_ONECLICKWOO_TEMPLATES_PLUGIN_DIR', CODERUN_ONECLICKWOO_PLUGIN_DIR . '/templates');
-define('CODERUN_ONECLICKWOO_PLUGIN_VERSION', '2.0.2');
+define('CODERUN_ONECLICKWOO_PLUGIN_VERSION', '2.6.0');
 
 /**
  * Инициализация всего плагина
  */
 (function()
 {
-    load_plugin_textdomain(
-        'coderun-oneclickwoo',
-        false,
-        dirname(plugin_basename(__FILE__)) . '/languages'
-    );
-    
     require_once(CODERUN_ONECLICKWOO_PLUGIN_DIR . '/vendor/autoload.php');
     
     $main = Coderun\BuyOneClick\Core::getInstance();

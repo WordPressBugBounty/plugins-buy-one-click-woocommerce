@@ -57,17 +57,19 @@ class FormController extends Controller
      */
     public function viewFormOrder(): void
     {
-        $productId = intval($_POST['productid'] ?? 0);
-        $variationId = intval($_POST['variation_selected']);
+        if (!wp_verify_nonce($this->getFrontendNonce(), self::FRONTEND_NONCE_ACTION)) {
+            $this->abortOnFailedNonce();
+        }
+        $productId = isset($_POST['productid']) ? intval(wp_unslash($_POST['productid'])) : 0;
+        $variationId = isset($_POST['variation_selected']) ? intval(wp_unslash($_POST['variation_selected'])) : 0;
 
         if ($variationId > 0) {
             $productId = $variationId;
         }
         $product = wc_get_product($productId);
         $productName = $product->get_name() ?? '';
-       if ($product instanceof \WC_Product_Variation) {
-           $productName .= ' ( '.$product->get_attribute_summary(). ' ) ';
-           
+        if ($product instanceof \WC_Product_Variation) {
+            $productName .= ' ( ' . $product->get_attribute_summary() . ' ) ';
         }
         if (method_exists($product, 'get_image_id')) {
             $images = wp_get_attachment_image_src($product->get_image_id()); //Урл картинки товара
@@ -87,8 +89,8 @@ class FormController extends Controller
                 'productSrcImg'    => sprintf('<img src="%s" width="80" height="80">', $images[0] ?? ''),
                 'variationPlugin'  => ObjectWithConstantState::getInstance()->isVariations(),
                 'templateStyle'    => $this->commonOptions->isStyleInsertHtml(),
-                'formWithFiles'    => ((new FilesFactory())->create())->render($productObject),
-                'formWithQuantity' => ((new QuantityFactory())->create())->render($productObject),
+                'formWithFiles'    => (new FilesFactory())->create()->render($productObject),
+                'formWithQuantity' => (new QuantityFactory())->create()->render($productObject),
                 'product'          => $product,
             ]
         );
@@ -101,25 +103,28 @@ class FormController extends Controller
      * @return void
      * @throws \Exception
      */
-    public function viewFormOrderCustom()
+    public function viewFormOrderCustom(): void
     {
+        if (!wp_verify_nonce($this->getFrontendNonce(), self::FRONTEND_NONCE_ACTION)) {
+            $this->abortOnFailedNonce();
+        }
         $productObject = new Product([
             'product' => null,
         ]);
         $fields = new FieldsOfOrderForm(
             [
-                'productId'        => $_POST['productid'] ?? '',
-                'productName'      => $_POST['name'] ?? '',
-                'productPrice'     => $_POST['price'] ?? '',
-                'productPriceHtml' => $_POST['priceHtml'] ?? '',
-                'productCount'     => $_POST['count'] ?? 1,
+                'productId'        => isset($_POST['productid']) ? intval(wp_unslash($_POST['productid'])) : 0,
+                'productName'      => isset($_POST['name']) ? sanitize_text_field(wp_unslash($_POST['name'])) : '',
+                'productPrice'     => isset($_POST['price']) ? floatval(wp_unslash($_POST['price'])) : 0,
+                'productPriceHtml' => isset($_POST['priceHtml']) ? wp_kses_post(wp_unslash($_POST['priceHtml'])) : '',
+                'productCount'     => isset($_POST['count']) ? intval(wp_unslash($_POST['count'])) : 1,
                 'shortCode'        => 1,
                 'productImg'       => '',
                 'productSrcImg'    => '',
                 'variationPlugin'  => ObjectWithConstantState::getInstance()->isVariations(),
                 'templateStyle'    => $this->commonOptions->isStyleInsertHtml(),
-                'formWithFiles'    => ((new FilesFactory())->create())->render($productObject),
-                'formWithQuantity' => ((new QuantityFactory())->create())->render($productObject),
+                'formWithFiles'    => (new FilesFactory())->create()->render($productObject),
+                'formWithQuantity' => (new QuantityFactory())->create()->render($productObject),
                 'product'          => null,
             ]
         );

@@ -1,4 +1,10 @@
 <?php
+// Dedicated repository for the plugin's own `wp_coderun_oneclickwoo_orders` table.
+// Direct $wpdb access is intentional here (no equivalent WP/WC CRUD layer exists for this table).
+// Table name is a fixed internal identifier, so raw SQL built around it is acceptable.
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery
+// phpcs:disable WordPress.DB.DirectDatabaseQuery.NoCaching
+// phpcs:disable WordPress.DB.PreparedSQL.NotPrepared
 
 namespace Coderun\BuyOneClick\Repository;
 
@@ -13,17 +19,16 @@ use WC_Order_Item_Product;
 
 class Order
 {
-    /** @var Order  */
-    protected static $_instance = null;
-    /** @var string  */
-    protected $order_table = 'wp_coderun_oneclickwoo_orders';
+    /** @var Order|null */
+    protected static ?Order $_instance = null;
+    protected string $order_table = 'wp_coderun_oneclickwoo_orders';
 
     /**
      * Singletone
      *
      * @return Order
      */
-    public static function getInstance()
+    public static function getInstance(): Order
     {
         if (is_null(self::$_instance)) {
             self::$_instance = new self();
@@ -34,12 +39,12 @@ class Order
     /**
      * Создаёт необходимый объект заказа
      *
-     * @param $params
+     * @param array<string, mixed> $params
      *
      * @return WC_Order|\WP_Error
      * @throws \WC_Data_Exception
      */
-    public function create_order($params)
+    public function create_order(array $params): WC_Order|\WP_Error
     {
         $default_params = [
             'first_name'          => '',
@@ -54,7 +59,7 @@ class Order
             'postcode'            => '',
             'country'             => '',
             'order_status'        => 'processing', //Статус заказа который будет установлен
-            'message_notes_order' => __('Quick order form', 'coderun-oneclickwoo'), //Сообщение в заказе
+            'message_notes_order' => __('Quick order form', 'buy-one-click-woocommerce'), //Сообщение в заказе
             'qty'                 => 1,
             'product_id'          => 0, //ИД товара Woo или ИД вариации
         ];
@@ -175,9 +180,11 @@ class Order
     /**
      * Создаёт заказ в WooCommerce
      *
-     * @param array $params массив параметров аналогичный $default_params
+     * @param array<string, mixed> $params массив параметров аналогичный $default_params
+     *
+     * @return int
      */
-    public function set_order($params)
+    public function set_order(array $params): int
     {
         $order = $this->create_order($params);
         // Вызывается ниже по коду, что бы не запускать события раньше времени
@@ -222,11 +229,20 @@ class Order
         return $wpdb->insert_id;
     }
 
-    public function get_order($order_id)
+    /**
+     * @param int $order_id
+     *
+     * @return \stdClass|null
+     */
+    public function get_order(int $order_id): ?\stdClass
     {
         global $wpdb;
-        $order_id = intval($order_id);
-        return $wpdb->get_row("select * from {$this->order_table} where id={$order_id}", ARRAY_A);
+        $order_id = absint($order_id);
+        $table = esc_sql($this->order_table);
+        return $wpdb->get_row(
+            $wpdb->prepare('SELECT * FROM ' . $table . ' WHERE id = %d', $order_id),
+            ARRAY_A
+        );
     }
 
     /**
@@ -241,8 +257,9 @@ class Order
     {
         global $wpdb;
 
+        $table = esc_sql($this->order_table);
         $row = $wpdb->get_row(
-            sprintf('select * from %s where woo_order_id = %s', $this->order_table, $orderId),
+            $wpdb->prepare('SELECT * FROM ' . $table . ' WHERE woo_order_id = %d', $orderId),
             ARRAY_A
         );
         if (!is_array($row)) {
@@ -260,12 +277,9 @@ class Order
     public function getOrders(): array
     {
         global $wpdb;
+        $table = esc_sql($this->order_table);
         $rows = $wpdb->get_results(
-            sprintf(
-                'select * from %s where active = %d order by id asc',
-                $this->order_table,
-                1
-            ),
+            'SELECT * FROM ' . $table . ' WHERE active = 1 ORDER BY id ASC',
             ARRAY_A
         );
         $result = [];
@@ -276,19 +290,34 @@ class Order
         return $result;
     }
 
-    public function deactive_order($order_id)
+    /**
+     * @param int $order_id
+     *
+     * @return void
+     */
+    public function deactive_order(int $order_id): void
     {
         global $wpdb;
         $wpdb->update($this->order_table, ['active' => 0], ['id' => $order_id]);
     }
 
-    public function remove_order_all()
+    /**
+     * @return void
+     */
+    public function remove_order_all(): void
     {
         global $wpdb;
-        $wpdb->query("truncate table {$this->order_table}");
+        $table = esc_sql($this->order_table);
+        $wpdb->query('TRUNCATE TABLE ' . $table);
     }
 
-    public function update_status($order_id, $status)
+    /**
+     * @param int $order_id
+     * @param int $status
+     *
+     * @return void
+     */
+    public function update_status(int $order_id, int $status): void
     {
         global $wpdb;
         $wpdb->update($this->order_table, ['status' => $status], ['id' => $order_id]);

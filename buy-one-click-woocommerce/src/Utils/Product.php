@@ -35,25 +35,24 @@ class Product
 
         return $productId;
     }
-    
+
     /**
      * Цена товара с учётом сторонних дополнений
      *
-     * @param     $product
-     * @param int $quantity
+     * @param WC_Product $product
+     * @param int        $quantity
      *
-     * @return mixed|string
+     * @return float
      */
-    public static function getProductPrice($product, $quantity = 1): float
+    public static function getProductPrice(WC_Product $product, int $quantity = 1): float
     {
-        if (!$product instanceof WC_Product) {
-            return floatval(0);
-        }
         $prices = [];
         try {
             // plugin - Woo Discount Rules
-            if (class_exists('\Wdr\App\Controllers\ManageDiscount')
-                && method_exists('Wdr\App\Controllers\ManageDiscount', 'calculateInitialAndDiscountedPrice')) {
+            if (
+                class_exists('\Wdr\App\Controllers\ManageDiscount')
+                && method_exists('Wdr\App\Controllers\ManageDiscount', 'calculateInitialAndDiscountedPrice')
+            ) {
                 $prices = \Wdr\App\Controllers\ManageDiscount::calculateInitialAndDiscountedPrice($product, $quantity);
             }
         } catch (Throwable $e) {
@@ -63,7 +62,7 @@ class Product
         if (is_array($prices) && !empty($prices['discounted_price'])) {
             return floatval($prices['discounted_price']);
         }
-    
+
         return floatval($product->get_price());
     }
 }

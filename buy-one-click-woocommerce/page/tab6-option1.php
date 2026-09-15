@@ -1,5 +1,4 @@
 <?php
-
 use Coderun\BuyOneClick\Core;
 
 if (!defined('ABSPATH')) {

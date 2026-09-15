@@ -71,7 +71,8 @@ class OrderController extends Controller
             if (empty($_POST)) {
                 throw RequestException::emptyRequest();
             }
-            if (!wp_verify_nonce($_POST['_coderun_nonce'], 'one_click_send')) {
+            $nonce = isset($_POST['_coderun_nonce']) ? sanitize_text_field(wp_unslash($_POST['_coderun_nonce'])) : '';
+            if (!wp_verify_nonce($nonce, 'one_click_send')) {
                 throw RequestException::nonceError();
             }
 
@@ -120,7 +121,7 @@ class OrderController extends Controller
                     $orderForm
                 );
             }
-            if ($notificationOptions->getEmailBcc() != '') {
+            if ($notificationOptions->getEmailBcc() !== '') {
                 EmailUtils::sendAnEmail(
                     $notificationOptions->getEmailBcc(),
                     $orderForm
@@ -129,7 +130,7 @@ class OrderController extends Controller
 
             $wooOrderId = 0;
             //В таблицу Woo
-            if ($this->commonOptions->isAddAnOrderToWooCommerce() and $orderForm->getCustom() == 0) {
+            if ($this->commonOptions->isAddAnOrderToWooCommerce() && $orderForm->getCustom() === 0) {
                 $wooOrderId = Order::getInstance()->set_order(
                     [
                         'first_name'          => $orderForm->getUserName(),
@@ -144,7 +145,7 @@ class OrderController extends Controller
                         'postcode'            => '',
                         'country'             => '',
                         'order_status'        => 'processing', //Статус заказа который будет установлен
-                        'message_notes_order' => __('Quick order form', 'coderun-oneclickwoo'), //Сообщение в заказе
+                        'message_notes_order' => __('Quick order form', 'buy-one-click-woocommerce'), //Сообщение в заказе
                         'qty'                 => $orderForm->getQuantityProduct() ?: 1,
                         'product_id'          => $orderForm->getProductId(), //ИД товара Woo
                     ]
@@ -167,7 +168,7 @@ class OrderController extends Controller
                 $order_field
             );
             $orderResponse = new OrderResponse();
-            $orderResponse->setMessage(__('The order has been sent', 'coderun-oneclickwoo'));
+            $orderResponse->setMessage(__('The order has been sent', 'buy-one-click-woocommerce'));
             $orderResponse->setResult(Translation::translate($this->commonOptions->getSubmittingFormMessageSuccess()));
             $orderResponse->setProducts([new Product($orderForm)]);
             $orderResponse->setOrderUuid($orderForm->getOrderUuid());
@@ -203,7 +204,7 @@ class OrderController extends Controller
             );
         } catch (RequestException $ex) {
             $errorResponse = new ErrorResponse();
-            $errorResponse->setMessage(__('request error', 'coderun-oneclickwoo'));
+            $errorResponse->setMessage(__('request error', 'buy-one-click-woocommerce'));
             $this->logger->error($ex->getMessage());
             wp_send_json_error((new CommonHydrator())->extractToArray($errorResponse));
         } catch (DependenciesException | RequireFieldException | LimitOnSendingFormsException | UploadingFilesException $ex) {
@@ -225,26 +226,26 @@ class OrderController extends Controller
     protected function checkRequireField(OrderForm $orderForm, FieldNameViaType $translatingFields): void
     {
         if ($this->commonOptions->isFieldEmailIsRequired() && !$orderForm->getUserEmail()) {
-            throw RequireFieldException::fieldIsRequired($translatingFields->getUserEmail());
+            throw RequireFieldException::fieldIsRequired(esc_html($translatingFields->getUserEmail()));
         }
         if ($this->commonOptions->isFieldNameIsRequired() && !$orderForm->getUserName()) {
-            throw RequireFieldException::fieldIsRequired($translatingFields->getUserName());
+            throw RequireFieldException::fieldIsRequired(esc_html($translatingFields->getUserName()));
         }
         if ($this->commonOptions->isFieldPhoneIsRequired() && !$orderForm->getUserPhone()) {
-            throw RequireFieldException::fieldIsRequired($translatingFields->getUserPhone());
+            throw RequireFieldException::fieldIsRequired(esc_html($translatingFields->getUserPhone()));
         }
         if ($this->commonOptions->isFieldCommentIsRequired() && !$orderForm->getUserComment()) {
-            throw RequireFieldException::fieldIsRequired($translatingFields->getUserComment());
+            throw RequireFieldException::fieldIsRequired(esc_html($translatingFields->getUserComment()));
         }
         if ($this->commonOptions->isConsentToProcessing() && !$orderForm->isConset()) {
-            throw RequireFieldException::fieldIsRequired($translatingFields->getConsent());
+            throw RequireFieldException::fieldIsRequired(esc_html($translatingFields->getConsent()));
         }
         if (
             $this->commonOptions->isEnableFieldWithFiles()
             && $this->commonOptions->isFieldFilesIsRequired()
-            && count($orderForm->getFiles()) == 0
+            && count($orderForm->getFiles()) === 0
         ) {
-            throw  RequireFieldException::fieldIsRequired($translatingFields->getFiles());
+            throw  RequireFieldException::fieldIsRequired(esc_html($translatingFields->getFiles()));
         }
     }
 
@@ -257,16 +258,16 @@ class OrderController extends Controller
     protected function checkLimitSendForm(int $product_id): void
     {
         $uniqueId = $this->getCustomerUniqueId();
-        if (empty($uniqueId) || $this->commonOptions->getFormSubmissionLimit() == 0) {
+        if (empty($uniqueId) || $this->commonOptions->getFormSubmissionLimit() === 0) {
             return;
         }
         $storage = new CacheStorage();
         $key = sprintf('buy_one_%s_%s', $product_id, $uniqueId);
-        if ($storage->getSessionValue($key) == null) {//Установка
+        if ($storage->getSessionValue($key) === null) {//Установка
             $storage->setSessionValue($key, (time() + $this->commonOptions->getFormSubmissionLimit()));
         } else {
             if ($storage->getSessionValue($key, 0) > time()) {
-                throw LimitOnSendingFormsException::error($this->commonOptions->getFormSubmissionLimitMessage());
+                throw LimitOnSendingFormsException::error(esc_html($this->commonOptions->getFormSubmissionLimitMessage()));
             } else {
                 $storage->deleteSessionKey($key);
             }
@@ -300,7 +301,7 @@ class OrderController extends Controller
         $session = serialize(WC()->session);
         preg_match('/(wp_woocommerce_session_[a-zA-Z\d]+)"/i', $session, $matches);
         $uniqueString = $matches[1] ?? '';
-        if (strlen($uniqueString) > 0) {
+        if ($uniqueString !== '') {
             $uniqueString = md5($uniqueString);
         } elseif (is_user_logged_in()) {
             $uniqueString = (string) get_current_user_id();

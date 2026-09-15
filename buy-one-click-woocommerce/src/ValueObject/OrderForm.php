@@ -138,7 +138,7 @@ class OrderForm
         $this->orderTime = current_time('mysql');
         $this->custom = (int) $this->formDateParse('custom');
         $this->files = $files;
-        $this->quantityProduct = $this->formDateParse('quantity_product') == ''
+        $this->quantityProduct = $this->formDateParse('quantity_product') === ''
             ? 1 : intval($this->formDateParse('quantity_product'));
         $this->fillInPriceWithTax();
         $this->fillingWithVariations();
@@ -197,17 +197,17 @@ class OrderForm
         return sprintf(
             '<a href="%s" target="_blank">%s</a>',
             $url,
-            __('Look', 'coderun-oneclickwoo')
+            __('Look', 'buy-one-click-woocommerce')
         );
     }
 
 
     /**
-     * @param $key
+     * @param string $key
      *
      * @return array|string
      */
-    private function formDateParse($key)
+    private function formDateParse(string $key): array|string
     {
         return $this->arrayParse($this->formData, $key);
     }
@@ -533,7 +533,7 @@ class OrderForm
     public function __call(string $name, $arguments)
     {
         if (substr($name, 0, 3) !== 'set') {
-            throw ObjectException::setterDoesNotExist($name, self::class);
+            throw ObjectException::setterDoesNotExist(esc_html($name), self::class);
         }
         $property = lcfirst(substr($name, 3));
         $this->{$property} = $arguments[0] ?? '';

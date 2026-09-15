@@ -1,5 +1,5 @@
 <?php
-
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound
 use Coderun\BuyOneClick\Utils\Translation;
 
 if (!defined('ABSPATH')) {
@@ -12,43 +12,43 @@ if (!defined('ABSPATH')) {
  */
 /** @var \Coderun\BuyOneClick\SimpleDataObjects\FieldsOfOrderForm $fields */
 /** @var \Coderun\BuyOneClick\Templates\QuickOrderForm $render */
-$commonOptions = $render->getCommonOptions();
+$booc_commonOptions = $render->getCommonOptions();
 ?>
 <div id="formOrderOneClick">
     <div class="overlay" title="окно"></div>
     <div class="popup">
         <div class="close_order <?php echo $fields->templateStyle ? 'button' : '' ?>">x</div>
         <form id="buyoneclick_form_order" class="b1c-form" method="post" action="#">
-            <h2><?php echo Translation::translate($commonOptions->getNameButton()); ?></h2>
-            <?php if ($commonOptions->isEnableProductInformation()) { ?>
+            <h2><?php echo esc_html(Translation::translate($booc_commonOptions->getNameButton())); ?></h2>
+            <?php if ($booc_commonOptions->isEnableProductInformation()) { ?>
                 <div class="table-wrap">
                     <table>
                         <thead>
                         <tr valign="top">
                             <th scope="row">
-                                <span class="description"><?php _e('Name', 'coderun-oneclickwoo'); ?></span>
+                                <span class="description"><?php esc_html_e('Name', 'buy-one-click-woocommerce'); ?></span>
                             </th>
                             <th>
-                                <span class="description"><?php _e('Price', 'coderun-oneclickwoo'); ?></span>
+                                <span class="description"><?php esc_html_e('Price', 'buy-one-click-woocommerce'); ?></span>
                             </th>
                             <?php if (!empty($fields->productImg)) { ?>
                                 <th>
-                                    <span class="description"><?php _e('Picture', 'coderun-oneclickwoo'); ?></span>
+                                    <span class="description"><?php esc_html_e('Picture', 'buy-one-click-woocommerce'); ?></span>
                                 </th>
                             <?php } ?>
                         </tr>
                         </thead>
                         <tbody>
                         <tr valign="top">
-                            <td data-label="<?php _e('Name', 'coderun-oneclickwoo'); ?>" scope="row">
-                                <span class="description"> <?php echo $fields->productName; ?></span>
+                            <td data-label="<?php esc_html_e('Name', 'buy-one-click-woocommerce'); ?>" scope="row">
+                                <span class="description"> <?php echo esc_html($fields->productName); ?></span>
                             </td>
-                            <td data-label="<?php _e('Price', 'coderun-oneclickwoo'); ?>">
-                                <span class="description"><?php echo $fields->productPriceHtml; ?></span>
+                            <td data-label="<?php esc_html_e('Price', 'buy-one-click-woocommerce'); ?>">
+                                <span class="description"><?php echo wp_kses_post($fields->productPriceHtml); ?></span>
                             </td>
                             <?php if (!empty($fields->productImg)) { ?>
-                                <td data-label="<?php _e('Picture', 'coderun-oneclickwoo'); ?>">
-                                    <span class="description"><?php echo $fields->productSrcImg; ?></span>
+                                <td data-label="<?php esc_html_e('Picture', 'buy-one-click-woocommerce'); ?>">
+                                    <span class="description"><?php echo wp_kses_post($fields->productSrcImg); ?></span>
                                 </td>
                             <?php } ?>
                         </tr>
@@ -57,46 +57,47 @@ $commonOptions = $render->getCommonOptions();
                 </div>
             <?php } ?>
             
-            <?php if ($commonOptions->isEnableFieldWithName()) { ?>
-                <input class="buyvalide <?php echo $fields->templateStyle ? 'input-text' : '' ?>" type="text" <?php ?> placeholder="<?php echo Translation::translate($commonOptions->getDescriptionForFieldName()); ?>" name="txtname">
+            <?php if ($booc_commonOptions->isEnableFieldWithName()) { ?>
+                <input class="buyvalide <?php echo $fields->templateStyle ? 'input-text' : '' ?>" type="text" <?php ?> placeholder="<?php echo esc_attr(Translation::translate($booc_commonOptions->getDescriptionForFieldName())); ?>" name="txtname">
             <?php } ?>
-            <?php if ($commonOptions->isEnableFieldWithPhone()) { ?>
-                <input class="buyvalide <?php echo $fields->templateStyle ? 'input-text' : '' ?> " type="tel" <?php ?> placeholder="<?php echo Translation::translate($commonOptions->getDescriptionForFieldPhone()); ?>" name="txtphone">
+            <?php if ($booc_commonOptions->isEnableFieldWithPhone()) { ?>
+                <input class="buyvalide <?php echo $fields->templateStyle ? 'input-text' : '' ?> " type="tel" <?php ?> placeholder="<?php echo esc_attr(Translation::translate($booc_commonOptions->getDescriptionForFieldPhone())); ?>" name="txtphone">
                 <p class="phoneFormat"><?php
-                    if (!empty($commonOptions->getDescriptionForFieldFormatPhone())) {
-                        echo __('Format', 'coderun-oneclickwoo') . ' ' . $commonOptions->getDescriptionForFieldFormatPhone();
+                    if (!empty($booc_commonOptions->getDescriptionForFieldFormatPhone())) {
+                        echo esc_html__('Format', 'buy-one-click-woocommerce') . ' ' . esc_html($booc_commonOptions->getDescriptionForFieldFormatPhone());
                     }
                     ?></p>
             <?php } ?>
-            <?php if ($commonOptions->isEnableFieldWithEmail()) { ?>
-                <input class="buyvalide <?php echo $fields->templateStyle ? 'input-text' : '' ?> " type="email" <?php ?> placeholder="<?php echo Translation::translate($commonOptions->getDescriptionForFieldEmail()); ?>" name="txtemail">
+            <?php if ($booc_commonOptions->isEnableFieldWithEmail()) { ?>
+                <input class="buyvalide <?php echo $fields->templateStyle ? 'input-text' : '' ?> " type="email" <?php ?> placeholder="<?php echo esc_attr(Translation::translate($booc_commonOptions->getDescriptionForFieldEmail())); ?>" name="txtemail">
             <?php } ?>
-            <?php if ($commonOptions->isEnableFieldWithComment()) { ?>
-                <textarea class="buymessage buyvalide" <?php ?> name="message" placeholder="<?php echo Translation::translate($commonOptions->getDescriptionForFieldComment()); ?>" rows="2" value=""></textarea>
+            <?php if ($booc_commonOptions->isEnableFieldWithComment()) { ?>
+                <textarea class="buymessage buyvalide" <?php ?> name="message" placeholder="<?php echo esc_attr(Translation::translate($booc_commonOptions->getDescriptionForFieldComment())); ?>" rows="2" value=""></textarea>
             <?php } ?>
             
-            <?php if ($commonOptions->isConsentToProcessing()) { ?>
+            <?php if ($booc_commonOptions->isConsentToProcessing()) { ?>
                 <p>
                     <input type="checkbox" name="conset_personal_data">
-                    <?php echo Translation::translate($commonOptions->getDescriptionConsentToProcessing()); ?>
+                    <?php echo esc_html(Translation::translate($booc_commonOptions->getDescriptionConsentToProcessing())); ?>
                 </p>
             <?php } ?>
             
-            <?php echo $fields->formWithQuantity; ?>
+            <?php echo wp_kses_post($fields->formWithQuantity); ?>
             
             <?php wp_nonce_field('one_click_send', '_coderun_nonce'); ?>
-            <input type="hidden" name="nametovar" value="<?php echo $fields->productName; ?>" />
-            <input type="hidden" name="pricetovar" value="<?php echo $fields->productPrice; ?>" />
-            <input type="hidden" name="idtovar" value="<?php echo $fields->productId; ?>" />
+            <input type="hidden" name="nametovar" value="<?php echo esc_attr($fields->productName); ?>" />
+            <input type="hidden" name="pricetovar" value="<?php echo esc_attr($fields->productPrice); ?>" />
+            <input type="hidden" name="idtovar" value="<?php echo esc_attr($fields->productId); ?>" />
             <input type="hidden" name="action" value="coderun_send_form_buy_one_click_buybuttonform" />
-            <input type="hidden" name="custom" value="<?php echo $fields->shortCode; ?>"/>
+            <input type="hidden" name="custom" value="<?php echo esc_attr($fields->shortCode); ?>"/>
             
             <?php
             //Форма файлов
-            echo $fields->formWithFiles;
+            //Шаблон содержит собственные блоки <style>/<script>, поэтому не фильтруем через wp_kses_post
+            echo $fields->formWithFiles; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             
-            if ($commonOptions->isRecaptchaEnabled()) {
-                Coderun\BuyOneClick\ReCaptcha::getInstance()->view($commonOptions->getCaptchaProvider());
+            if ($booc_commonOptions->isRecaptchaEnabled()) {
+                Coderun\BuyOneClick\ReCaptcha::getInstance()->view($booc_commonOptions->getCaptchaProvider());
             }
 
             ?>
@@ -107,7 +108,7 @@ $commonOptions = $render->getCommonOptions();
                 type="submit"
                 class="button alt buyButtonOkForm ld-ext-left"
                 name="btnsend">
-                <span> <?php echo Translation::translate($commonOptions->getDescriptionForFieldOrderButton()); ?></span>
+                <span> <?php echo esc_html(Translation::translate($booc_commonOptions->getDescriptionForFieldOrderButton())); ?></span>
                 <div style="font-size:14px" class="ld ld-ring ld-cycle"></div>
             </button>
         
@@ -115,12 +116,12 @@ $commonOptions = $render->getCommonOptions();
     
     </div>
     <?php
-    if ($commonOptions->getActionAfterSubmittingForm() > 0) {
+    if ($booc_commonOptions->getActionAfterSubmittingForm() > 0) {
         ?>
-        <div class = "overlay_message" title = "<?php _e('Notification', 'coderun-oneclickwoo'); ?>"></div>
+        <div class = "overlay_message" title = "<?php esc_html_e('Notification', 'buy-one-click-woocommerce'); ?>"></div>
         <div class = "popummessage">
             <div class="close_message">x</div>
-            <?php echo Translation::translate($commonOptions->getMessageAfterSubmittingForm());  ?>
+            <?php echo esc_html(Translation::translate($booc_commonOptions->getMessageAfterSubmittingForm()));  ?>
         </div>
         <?php
     }

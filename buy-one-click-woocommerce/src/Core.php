@@ -16,9 +16,11 @@ use Coderun\BuyOneClick\Options\Marketing as MarketingOptions;
 use Coderun\BuyOneClick\Service\Factory\ButtonFactory as ButtonServiceFactory;
 use Coderun\BuyOneClick\Service\Factory\EmailTemplateFactory;
 use Coderun\BuyOneClick\Service\Factory\ShortCodesFactory;
+use Coderun\BuyOneClick\Service\Variations;
 use Coderun\BuyOneClick\Utils\Hooks;
 use Coderun\BuyOneClick\Utils\Translation;
 use Exception;
+use WC_Order;
 use WC_Product;
 use Coderun\BuyOneClick\Constant\Options\Type as OptionsType;
 
@@ -39,39 +41,39 @@ class Core
     /**
      * Полное название плагина
      */
-    public const NAME_PLUGIN = 'Buy one click WooCommerce';
+    public const string NAME_PLUGIN = 'Buy one click WooCommerce';
     /**
      * Имя папки с плагином без слэшей
      */
-    public const PATCH_PLUGIN = 'buy-one-click-woocommerce';
+    public const string PATCH_PLUGIN = 'buy-one-click-woocommerce';
     /**
      * Название пункта подменю
      */
-    public const NAME_SUB_MENU = 'BuyOneClick';
+    public const string NAME_SUB_MENU = 'BuyOneClick';
     /**
      * URL страницы подменю
      */
-    public const URL_SUB_MENU = 'buyone';
+    public const string URL_SUB_MENU = 'buyone';
     /**
      * Путь до страницы опций плагина HTML
      */
-    public const OPTIONS_NAME_PAGE = 'page/option1.php';
+    public const string OPTIONS_NAME_PAGE = 'page/option1.php';
     /**
      * Имя индексного файла
      */
-    public const INDEX_NAME_FILE = 'buycli-index.php';
-    public const OPTIONS_MARKETING = OptionsType::MARKETING;
-    public const OPTIONS_GENERAL = OptionsType::GENERAL;
-    public const OPTIONS_DESIGN_FORM = OptionsType::DESIGN_FORM;
+    public const string INDEX_NAME_FILE = 'buycli-index.php';
+    public const string OPTIONS_MARKETING = OptionsType::MARKETING;
+    public const string OPTIONS_GENERAL = OptionsType::GENERAL;
+    public const string OPTIONS_DESIGN_FORM = OptionsType::DESIGN_FORM;
     /**
      * Вкладка Уведомлений
      */
-    public const OPTIONS_NOTIFICATIONS = OptionsType::NOTIFICATIONS;
-    public const OPTIONS_SMS = OptionsType::SMS;
+    public const string OPTIONS_NOTIFICATIONS = OptionsType::NOTIFICATIONS;
+    public const string OPTIONS_SMS = OptionsType::SMS;
     /**
      * Версия ядра
      */
-    public const VERSION = '2.0.0';
+    public const string VERSION = '2.6.0';
 
     /**
      * @var Core|null
@@ -151,7 +153,7 @@ class Core
         add_action(
             'init',
             function (): void {
-                do_action('buy_one_click_woocommerce_start_load_core');
+                do_action('coderun_oneclickwoo_start_load_core');
                 ObjectWithConstantState::getInstance();
             }
         );
@@ -177,16 +179,22 @@ class Core
 
         add_action(
             'woocommerce_email_before_order_table',
-            static function ($order, $sent_to_admin, $plain_text): void {
-                echo (new EmailTemplateFactory())->create()->modificationOrderTemplateWooCommerce($order);
+            static function (WC_Order $order): void {
+                echo (new EmailTemplateFactory())->create()->modificationOrderTemplateWooCommerce($order); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
             },
             10,
-            3
+            1
         );
         add_action(
             'wp_head',
             function (): void {
                 $this->frontVariables();
+            }
+        );
+        add_action(
+            'admin_enqueue_scripts',
+            function (): void {
+                $this->adminPageVariables();
             }
         );
         // Обработчики запросов
@@ -200,8 +208,40 @@ class Core
                 Hooks::load();
             }
         );
-        add_filter('gettext', function ($translation, $text, $domain) {
-            if ($domain !== 'coderun-oneclickwoo' || !function_exists('pll__')) {
+        // Встроенная поддержка вариативных товаров
+        add_action(
+            'coderun_oneclickwoo_before_drawing_order_button_only_for_variable_products',
+            static function (): void {
+                Variations::getInstance()->init();
+            }
+        );
+        add_filter(
+            'coderun_oneclickwoo_init_front_variables',
+            static function (array $variables): array {
+                $variables['variation'] = 1;
+                return $variables;
+            }
+        );
+        add_filter(
+            'coderun_oneclickwoo_data_about_selected_variation_from_form',
+            static function (array $form): string {
+                return Variations::getInstance()->getVariableProductInfo($form);
+            }
+        );
+        add_filter(
+            'coderun_oneclickwoo_get_id_of_selected_variation',
+            static function (array $form): int {
+                return Variations::getInstance()->getVariationId($form);
+            }
+        );
+        add_filter(
+            'coderun_oneclickwoo_variations_plugin_is_used',
+            static function (): bool {
+                return true;
+            }
+        );
+        add_filter('gettext', function (string $translation, string $text, string $domain): string {
+            if ($domain !== 'buy-one-click-woocommerce' || !function_exists('pll__')) {
                 return $translation;
             }
             if (!in_array($text, TranslationString::all())) {
@@ -221,25 +261,29 @@ class Core
         add_action(
             'init',
             static function (): void {
-                ((new OrderControllerFactory())->create())->init();
+                (new OrderControllerFactory())->create()->init();
             }
         );
         add_action(
             'init',
             static function (): void {
-                ((new FormControllerFactory())->create())->init();
+                (new FormControllerFactory())->create()->init();
             }
         );
         add_action(
             'init',
             static function (): void {
-                ((new CartControllerFactory())->create())->init();
+                (new CartControllerFactory())->create()->init();
             }
         );
         add_action(
             'init',
-            static function () {
-                ((new AdminControllerFactory())->create())->init();
+            static function (): void {
+                if (!is_admin() || !current_user_can('administrator')) {
+                    return;
+                }
+
+                (new AdminControllerFactory())->create()->init();
             }
         );
     }
@@ -260,7 +304,7 @@ class Core
             add_action(
                 $locationInProductCard,
                 static function (): void {
-                    echo((new ButtonServiceFactory())->create())->getHtmlOrderButtons();
+                    echo (new ButtonServiceFactory())->create()->getHtmlOrderButtons(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
                 }
             ); //Кнопка заказать
             //Положение в категории товаров
@@ -269,7 +313,7 @@ class Core
                 add_action(
                     $locationInCategory,
                     static function (): void {
-                        echo((new ButtonServiceFactory())->create())->getHtmlOrderButtons();
+                        echo (new ButtonServiceFactory())->create()->getHtmlOrderButtons(); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
                     }
                 ); //Кнопка заказать
                 add_action($locationInCategory, [$this, 'styleAddFrontPage']); //Стили фронта
@@ -279,19 +323,19 @@ class Core
         // Для товаров которых нет в наличие
         add_filter(
             'woocommerce_get_stock_html',
-            function ($html) {
+            function (?string $html): ?string {
                 if ($this->commonOptions->isEnableButton() && strlen($this->commonOptions->getPositionButtonOutStock()) < 5) {
-                    return;
+                    return $html;
                 }
                 global $product;
                 if ($product instanceof WC_Product && method_exists('WC_Product', 'get_availability')) {
                     $availability = $product->get_availability();
-                    // Товар имеет статус не в наличие
-                    if (strlen($html) > 1 && isset($availability['class']) && $availability['class'] === 'out-of-stock') {
+                    // Товар имеет статус не в наличии
+                    if (strlen((string) $html) > 1 && isset($availability['class']) && $availability['class'] === 'out-of-stock') {
                         if (!$product->is_type('variable')) { // Не показывать в вариативных, Woo по умолчанию оставляет обычную кнопку
                             $this->styleAddFrontPage();
                             $this->scriptAddFrontPage();
-                            $html .= ((new ButtonServiceFactory())->create())->getHtmlOrderButtons();
+                            $html .= (new ButtonServiceFactory())->create()->getHtmlOrderButtons();
                         }
                     }
                 }
@@ -319,6 +363,7 @@ class Core
     protected function frontVariables(): void
     {
         $variables = ['ajaxurl' => admin_url('admin-ajax.php')];
+        $variables['nonce'] = wp_create_nonce('buy_one_click_frontend');
         $variables['variation'] = 0;
         $variables['tel_mask'] = str_replace(['\'', '"'], [], $this->commonOptions->getPhoneNumberInputMask());
         $variables['work_mode'] = $this->commonOptions->getPluginWorkMode();
@@ -360,7 +405,32 @@ class Core
             sprintf('</script>%s', "\n"),
         ];
         foreach ($outputList as $value) {
-            echo $value;
+            echo $value; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+        }
+    }
+
+    /**
+     * JS переменные админки
+     *
+     * @return void
+     */
+    protected function adminPageVariables(): void
+    {
+        $variables = ['ajaxurl' => admin_url('admin-ajax.php')];
+        $variables['removeorderall'] = wp_create_nonce('removeorderall');
+        $variables['removeorder'] = wp_create_nonce('removeorder');
+        $variables['updatestatus'] = wp_create_nonce('updatestatus');
+        $variables['buy_one_click_export_options'] = wp_create_nonce('buy_one_click_export_options');
+        $variables['buy_one_click_import_options'] = wp_create_nonce('buy_one_click_import_options');
+
+
+        $outputList = [
+            sprintf('<script type="text/javascript">%s', "\n"),
+            sprintf('let buy_one_click_nonce_value_actions = %s;%s', \json_encode($variables), "\n"),
+            sprintf('</script>%s', "\n"),
+        ];
+        foreach ($outputList as $value) {
+            echo $value; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
         }
     }
 
@@ -416,9 +486,9 @@ class Core
      */
     public function styleAddPage(): void
     {
-        wp_register_style('buybootstrapcss1', plugins_url() . '/' . self::PATCH_PLUGIN . '/' . 'bootstrap/css/bootstrap.css');
+        wp_register_style('buybootstrapcss1', plugins_url() . '/' . self::PATCH_PLUGIN . '/' . 'bootstrap/css/bootstrap.css', [], self::VERSION);
         wp_enqueue_style('buybootstrapcss1');
-        wp_register_style('buyadmincss2', plugins_url() . '/' . self::PATCH_PLUGIN . '/' . 'css/admin.css');
+        wp_register_style('buyadmincss2', plugins_url() . '/' . self::PATCH_PLUGIN . '/' . 'css/admin.css', [], self::VERSION);
         wp_enqueue_style('buyadmincss2');
     }
 
@@ -433,13 +503,15 @@ class Core
             'buybootstrapjs1',
             plugins_url() . '/' . self::PATCH_PLUGIN . '/' . 'bootstrap/js/bootstrap.js',
             ['jquery'],
-            self::VERSION
+            self::VERSION,
+            true
         );
         wp_enqueue_script(
             'buyorder',
             plugins_url() . '/' . self::PATCH_PLUGIN . '/' . 'js/admin_order.js',
             ['jquery'],
-            self::VERSION
+            self::VERSION,
+            true
         );
         wp_localize_script(
             'buyorder',
@@ -457,17 +529,19 @@ class Core
                 self::PATCH_PLUGIN
             ),
             ['jquery'],
-            self::VERSION
+            self::VERSION,
+            true
         );
         wp_enqueue_script(
-            'form-builder',
+            'form-builder-render',
             sprintf(
                 '%s/%s/js/formBuilder/form-render.min.js',
                 plugins_url(),
                 self::PATCH_PLUGIN
             ),
             ['jquery'],
-            self::VERSION
+            self::VERSION,
+            true
         );
     }
 
@@ -479,7 +553,7 @@ class Core
     public function styleAddFrontPage(): void
     {
         foreach ($this->getStylesFront() as $styleName => $styleParams) {
-            wp_register_style($styleName, $styleParams['url'], $styleParams['deps']);
+            wp_register_style($styleName, $styleParams['url'], $styleParams['deps'], self::VERSION);
             wp_enqueue_style($styleName);
         }
     }
@@ -578,13 +652,14 @@ class Core
             'buy-one-click-yandex-metrica',
             sprintf('%s/%s/js/BuyOneClickYandexMetrica.js', plugins_url(), self::PATCH_PLUGIN),
             ['jquery'],
-            self::VERSION
+            self::VERSION,
+            true
         );
-        wp_enqueue_script('buyonclickfrontjs', plugins_url() . '/' . self::PATCH_PLUGIN . '/' . 'js/form.js', ['jquery', 'buymaskedinput'], self::VERSION);
-        wp_enqueue_script('buymaskedinput', plugins_url() . '/' . self::PATCH_PLUGIN . '/' . 'js/jquery.maskedinput.min.js', ['jquery'], self::VERSION);
+        wp_enqueue_script('buymaskedinput', plugins_url() . '/' . self::PATCH_PLUGIN . '/' . 'js/jquery.maskedinput.min.js', ['jquery'], self::VERSION, true);
+        wp_enqueue_script('buyonclickfrontjs', plugins_url() . '/' . self::PATCH_PLUGIN . '/' . 'js/form.js', ['jquery', 'buymaskedinput'], self::VERSION, true);
     }
 
-    
+
     /**
      * Стиль активной вкладки
      *
@@ -594,7 +669,7 @@ class Core
      */
     public function getCssOfActiveTab(string $tabName): string
     {
-        $currentTab = $_GET['tab'] ?? Pages::GENERAL;
+        $currentTab = isset($_GET['tab']) ? sanitize_text_field(wp_unslash($_GET['tab'])) : Pages::GENERAL; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only UI helper picking which settings tab to highlight; performs no privileged action
         return $tabName === $currentTab ? 'nav-tab-active' : '';
     }
 
@@ -608,7 +683,7 @@ class Core
     public function showPage(): void
     {
         $pages = $this->getTabs();
-        $tab = $_GET['tab'] ?? Pages::DEFAULT;
+        $tab = isset($_GET['tab']) ? sanitize_text_field(wp_unslash($_GET['tab'])) : Pages::DEFAULT; // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only selection of which settings tab page to render; no privileged action performed
         if (array_key_exists($tab, $pages) && file_exists($pages[$tab])) {
             include_once $pages[$tab];
             return;
@@ -646,8 +721,8 @@ class Core
         $pluginPath = self::PATCH_PLUGIN . '/' . self::INDEX_NAME_FILE;
         if ($filePath === $pluginPath) {
             $listLinks = [
-                sprintf('<a href="admin.php?page=%s">%s</a>', self::URL_SUB_MENU, __('Settings', 'default')),
-                sprintf('<a href="https://t.me/coderunphp">%s</a>', __('Telegram', 'coderun-oneclickwoo')),
+                sprintf('<a href="admin.php?page=%s">%s</a>', self::URL_SUB_MENU, __('Settings', 'buy-one-click-woocommerce')),
+                sprintf('<a href="https://t.me/coderunphp">%s</a>', __('Telegram', 'buy-one-click-woocommerce')),
             ];
             $commonMenu = array_merge($commonMenu, $listLinks);
         }
@@ -657,24 +732,21 @@ class Core
     /**
      * Вернёт нужную настройку
      *
-     * @param $key          Ключ опции
-     *                      относящийся к
-     *                      $optionsBush
-     * @param string                           $optionsBush  раздел
-     *                                                       настроек
-     * @param string                           $defaultValue значение по умолчанию, если нет опции
+     * @param string $key          Ключ опции, относящийся к $optionsBush
+     * @param string $optionsBush  Раздел настроек
+     * @param mixed  $defaultValue Значение по умолчанию, если нет опции
      *
-     * @return mixed|string
+     * @return mixed
      * @throws Exception
      */
-    public function getOption($key, $optionsBush = 'buyoptions', $defaultValue = '')
+    public function getOption(string $key, string $optionsBush = 'buyoptions', mixed $defaultValue = ''): mixed
     {
-        if (!array_key_exists($optionsBush, $this->optionsPull) || empty($optionsBush)) {
-            throw new Exception(sprintf('Invalid settings key: %s', $optionsBush));
+        if (!array_key_exists($optionsBush, $this->optionsPull) || $optionsBush === '') {
+            throw new Exception(sprintf('Invalid settings key: %s', esc_html($optionsBush)));
         }
 
         if (empty($this->optionsPull[$optionsBush])) {
-            $this->optionsPull[$optionsBush] = \get_option($optionsBush, []);
+            $this->optionsPull[$optionsBush] = get_option($optionsBush, []);
         }
 
         if (isset($this->optionsPull[$optionsBush][$key])) {
@@ -686,24 +758,21 @@ class Core
     /**
      * Указываем WordPress опции с которыми работает плагин
      */
-    protected function registeringSettings()
+    protected function registeringSettings(): void
     {
+        $sanitizer = static fn(mixed $forms): mixed => is_array($forms)
+            ? array_map(static fn(mixed $value): mixed => trim(is_scalar($value) ? (string) $value : ''), $forms)
+            : $forms;
+
         // Tab6
         register_setting(
-            \sprintf('%s_options', self::OPTIONS_DESIGN_FORM),
+            sprintf('%s_options', self::OPTIONS_DESIGN_FORM),
             self::OPTIONS_DESIGN_FORM,
             [
                 'type'              => 'array',
-                'group'             => \sprintf('%s_options', self::OPTIONS_DESIGN_FORM),
+                'group'             => sprintf('%s_options', self::OPTIONS_DESIGN_FORM),
                 'description'       => '',
-                'sanitize_callback' => function ($forms) {
-                    if (is_array($forms)) {
-                        foreach ($forms as $key => $value) {
-                            $forms[$key] = \trim($value);
-                        }
-                    }
-                    return $forms;
-                },
+                'sanitize_callback' => $sanitizer,
                 'show_in_rest'      => false,
                 'default'           => [],
             ]
@@ -717,14 +786,7 @@ class Core
                 'type'              => 'array',
                 'group'             => sprintf('%s_options', self::OPTIONS_MARKETING),
                 'description'       => '',
-                'sanitize_callback' => function ($forms) {
-                    if (is_array($forms)) {
-                        foreach ($forms as $key => $value) {
-                            $forms[$key] = \trim($value);
-                        }
-                    }
-                    return $forms;
-                },
+                'sanitize_callback' => $sanitizer,
                 'show_in_rest'      => false,
                 'default'           => [],
             ]
@@ -737,9 +799,7 @@ class Core
                 'type'              => 'array',
                 'group'             => sprintf('%s_options', self::OPTIONS_GENERAL),
                 'description'       => '',
-                'sanitize_callback' => function ($forms) {
-                    return $forms;
-                },
+                'sanitize_callback' => static fn(mixed $forms): mixed => $forms,
                 'show_in_rest'      => false,
                 'default'           => [],
             ]
@@ -752,9 +812,7 @@ class Core
                 'type'              => 'array',
                 'group'             => sprintf('%s_options', self::OPTIONS_NOTIFICATIONS),
                 'description'       => '',
-                'sanitize_callback' => function ($forms) {
-                    return $forms;
-                },
+                'sanitize_callback' => static fn(mixed $forms): mixed => $forms,
                 'show_in_rest'      => false,
                 'default'           => [],
             ]

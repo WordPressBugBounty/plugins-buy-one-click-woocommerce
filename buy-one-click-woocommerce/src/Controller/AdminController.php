@@ -24,10 +24,6 @@ class AdminController extends Controller
      */
     public function init()
     {
-        if (!is_admin()) {
-            return;
-        }
-
         add_action(
             'wp_ajax_removeorder',
             [$this, 'deleteOrderById']
@@ -51,12 +47,29 @@ class AdminController extends Controller
     }
 
     /**
+     * Проверка доступа к действиям панели управления плагином
+     *
+     * @param string $action Action для верификации nonce
+     *
+     * @return void
+     */
+    private function verifyAccess(string $action): void
+    {
+        if (!current_user_can('manage_woocommerce')) {
+            wp_die(-1);
+        }
+        check_admin_referer($action, 'buy_one_click_admin_actions');
+    }
+
+    /**
      * Удаляет заказ из таблицы заказов
      *
      * @return void
      */
     public function deleteOrderById(): void
     {
+        $this->verifyAccess('removeorder');
+
         // Удаление записи журнала плагина
         if (!empty($_POST['text'])) {
             $order_id = intval($_POST['text']);
@@ -86,8 +99,10 @@ class AdminController extends Controller
      */
     public function deleteAllOrders(): void
     {
-        $nonce = $_POST['nonce'] ?? []; // Массив URL и NONCE
-        if (wp_verify_nonce($nonce['nonce'] ?? '-1', 'superKey')) {
+        $this->verifyAccess('removeorderall');
+
+        $nonce = isset($_POST['nonce']['nonce']) ? sanitize_text_field(wp_unslash($_POST['nonce']['nonce'])) : '-1';
+        if (wp_verify_nonce($nonce, 'superKey')) {
             Order::getInstance()->remove_order_all();
             wp_send_json_success('ok');
         } else {
@@ -102,12 +117,14 @@ class AdminController extends Controller
      */
     public function updateOrderStatus(): void
     {
-        $text = $_POST['text'] ?? [];
-        $id = $text['id'] ?? '-1';
-        Order::getInstance()->update_status($id, intval($text['status']));
+        $this->verifyAccess('updatestatus');
+
+        $id = isset($_POST['text']['id']) ? intval(wp_unslash($_POST['text']['id'])) : -1;
+        $status = isset($_POST['text']['status']) ? intval(wp_unslash($_POST['text']['status'])) : 0;
+        Order::getInstance()->update_status($id, $status);
         wp_send_json_success();
     }
-    
+
     /**
      * Экспорт настроек
      *
@@ -115,9 +132,11 @@ class AdminController extends Controller
      */
     public function exportOptions(): void
     {
+        $this->verifyAccess('buy_one_click_export_options');
+
         wp_send_json_success([GeneralOptions::class => $this->commonOptions->toArrayWpToSave()]);
     }
-    
+
     /**
      * Экспорт настроек
      *
@@ -125,6 +144,8 @@ class AdminController extends Controller
      */
     public function importOptions(): void
     {
+        $this->verifyAccess('buy_one_click_import_options');
+
         $file = $_FILES;
         $success = false;
         try {
@@ -146,7 +167,6 @@ class AdminController extends Controller
                 update_option($optionsKey, $optionsToSave[$optionsKey]);
                 $success = true;
             }
-            
         } catch (\Throwable $exception) {
             wp_send_json_error(['message' => $exception->getMessage()]);
         }

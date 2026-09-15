@@ -62,7 +62,8 @@ class UploadingFiles
                 $file->extension
             );
             $savePath = $path . $newName;
-            if (move_uploaded_file($file->temporaryName, $savePath)) {
+            // Единственный безопасный способ переместить временный загруженный файл
+            if (move_uploaded_file($file->temporaryName, $savePath)) { // phpcs:ignore Generic.PHP.ForbiddenFunctions.move_uploaded_file -- move_uploaded_file() is the only safe way to persist an uploaded file
                 $result[$number] = new DownloadedFile(
                     [
                         'url'  => $this->pathToDownloadsFolder['url'] . '/' . $newName,
@@ -85,14 +86,14 @@ class UploadingFiles
      */
     protected function composeFilesStructure(): array
     {
-        $fileList = $_FILES['files'] ?? [];
+        $fileList = $_FILES['files'] ?? []; // phpcs:ignore WordPress.Security.NonceVerification.Missing, WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- $_FILES upload payload is gated by the frontend nonce verified in OrderController; uploaded binaries cannot be sanitized and each file passes extension/mime/size whitelists in checkRestriction()
         if (!$fileList) {
             return [];
         }
         $result = [];
         if ($this->isMultiForm()) {
             foreach ($fileList['name'] as $number => $value) {
-                if (strlen($value) == 0) {
+                if (strlen($value) === 0) {
                     continue;
                 }
                 $file = new DownloadableFile(
@@ -139,19 +140,19 @@ class UploadingFiles
      *
      * @throws Exception
      */
-    protected function checkRestriction()
+    protected function checkRestriction(): void
     {
         foreach ($this->files as $file) {
             if (!in_array($file->extension, $this->getValidExtension())) {
-                throw UploadingFilesException::invalidFileExtension($file->extension);
+                throw UploadingFilesException::invalidFileExtension(esc_html($file->extension));
             }
 
             if ($file->size > $this->getValidSize()) {
-                throw UploadingFilesException::invalidFileSize($file->size);
+                throw UploadingFilesException::invalidFileSize(esc_html($file->size));
             }
 
             if (!in_array($file->type, $this->getValidMimeTypes())) {
-                UploadingFilesException::invalidFileType($file->type);
+                throw UploadingFilesException::invalidFileType(esc_html($file->type));
             }
         }
     }
@@ -174,10 +175,12 @@ class UploadingFiles
     /**
      * Новое имя файла
      *
+     * @param string $name
+     *
      * @return string
      * @throws Exception
      */
-    protected function getNewName($name)
+    protected function getNewName(string $name): string
     {
         return Hooks::filterNameOfUploadedFile(
             sprintf('%s_%s', 'buy_file_', UuidUtils::uuidGenerator()),
@@ -208,7 +211,10 @@ class UploadingFiles
         return Hooks::filterExtensionsOfUploadedFile(['jpeg', 'jpg', 'png', 'gif', 'bmp', 'pdf', 'doc', 'ppt']);
     }
 
-    protected function getValidMimeTypes()
+    /**
+     * @return array<int, string>
+     */
+    protected function getValidMimeTypes(): array
     {
         $types = [
             'image/gif',
@@ -244,7 +250,10 @@ class UploadingFiles
         return Hooks::filterMimeTypeOfDownloadedFile($types);
     }
 
-    protected function getValidSize()
+    /**
+     * @return int
+     */
+    protected function getValidSize(): int
     {
         return Hooks::filterSizeOfUploadedFile(10485760);
     }
